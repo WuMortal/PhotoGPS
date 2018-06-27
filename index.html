@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <!-- 最新版本的 Bootstrap 核心 CSS 文件 -->
+    <link rel="stylesheet" href="https://cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
+        crossorigin="anonymous">
+    <style type="text/css">
+        body,
+        html,
+        #allmap {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            font-family: "微软雅黑";
+        }
+
+        #l-map {
+            height: 80%;
+            width: 100%;
+        }
+
+        #r-result {
+            width: 100%;
+        }
+    </style>
+    <script type="text/javascript" src="https://api.map.baidu.com/api?v=2.0&ak=你的百度地图AK"></script>
+    <script type="text/javascript" src="MapWrapper.min.js"></script>
+    <title>图片定位器</title>
+</head>
+
+<body class="container">
+
+    <div class="page-header">
+        <h2>图片定位器-识别手机拍摄图片</h2>
+        <input id="file-input" class="hide" type="file" />
+        <button class="btn btn-primary" id="img-input">图片上传</button>
+
+    </div>
+
+    <div id="msg">
+        <h3></h3>
+        <p></p>
+    </div>
+    <div id="l-map"></div>
+
+    <script type="text/javascript" src="exif.js"></script>
+    <script src="https://cdn.bootcss.com/jquery/3.2.0/jquery.min.js"></script>
+    <script>
+
+
+        $(function () {
+            $("#img-input").click(function () {
+                $("#file-input").click();
+            });
+
+            $("#file-input").change(function () {
+                $("#msg h3").text("");
+                $("#msg p").text("");
+                $("#l-map").html("").attr("style","");
+
+                var file = this.files[0];
+
+                //判断文件是否存在
+                if (file && file.name) {
+                    EXIF.getData(file, function () {
+                        var exifData = EXIF.getAllTags(this);
+
+                        //判断是否读取图片中的EXIF信息
+                        if (exifData) {
+
+                            //判断经纬度是否存在
+                            if (!(exifData.GPSLatitude && exifData.GPSLongitude)) {
+
+                                $("#msg h3").text("图片没有定位信息,其他信息:");
+                                console.log(EXIF.pretty(this));
+                                $("#msg p").text(EXIF.pretty(this));
+                                return;
+                            }
+
+                           
+                            //转换经纬度
+                            var gpsLatitude = ChangeToDu(exifData.GPSLatitude);
+                            var gpsLongitude = ChangeToDu(exifData.GPSLongitude);
+
+                            //加载百度地图
+                            loadBaiduMap(gpsLongitude, gpsLatitude);
+
+                             $("#msg h3").text("定位可能存在误差");
+
+
+                        } else {
+                            $("#msg h3").text("无效图片");
+                        }
+
+                        console.log("详细信息:" + EXIF.pretty(this));
+
+                    });
+                }
+            });
+
+
+            //转换经纬度
+            function ChangeToDu(value) {
+                var d = value[0];
+                var f = value[1];
+                var m = value[2];
+
+                var f = parseFloat(f) + parseFloat(m / 60);
+                var du = parseFloat(f / 60) + parseFloat(d);
+                return du;
+            }
+
+
+            //加载百度地图
+            function loadBaiduMap(gpsLongitude, gpsLatitude) {
+                console.log(gpsLongitude);
+                console.log(gpsLatitude);
+                // 百度地图API功能
+
+
+                var map = new BMap.Map("l-map");
+                map.addControl(new BMap.NavigationControl());
+                map.addControl(new BMap.ScaleControl());
+                map.addControl(new BMap.OverviewMapControl());
+                map.addControl(new BMap.MapTypeControl());
+                map.enableScrollWheelZoom(true);
+
+
+                var mapWforGPS = new BMapLib.MapWrapper(map, BMapLib.COORD_TYPE_GPS);
+
+                var point = new BMap.Point(gpsLongitude, gpsLatitude);
+
+
+                map.centerAndZoom(point, 15);
+                var marker = new BMap.Marker(point);// 创建标注
+                mapWforGPS.addOverlay(marker);
+                map.addOverlay(marker);             // 将标注添加到地图中
+            }
+
+        });
+
+
+
+    </script>
+</body>
+
+</html>
